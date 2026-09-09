@@ -61,6 +61,8 @@ describe("POST /admin/send", () => {
       headers: { "Content-Type": "application/json", Authorization: "Bearer segredo-de-teste" },
       body: JSON.stringify({ ...POST, slug: "post-repetido" }),
     });
+    const fetchCallsAfterFirst = fetch.mock.calls.length;
+
     const res2 = await SELF.fetch("https://worker.example/admin/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer segredo-de-teste" },
@@ -68,5 +70,6 @@ describe("POST /admin/send", () => {
     });
     const body2 = await res2.json();
     expect(body2.status).toBe("already-sent");
+    expect(fetch).toHaveBeenCalledTimes(fetchCallsAfterFirst);
   });
 });
