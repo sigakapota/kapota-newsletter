@@ -6,6 +6,9 @@ export default defineWorkersConfig({
     poolOptions: {
       workers: {
         wrangler: { configPath: "./wrangler.toml" },
+        miniflare: {
+          bindings: { ADMIN_SECRET: "segredo-de-teste" },
+        },
       },
     },
   },
