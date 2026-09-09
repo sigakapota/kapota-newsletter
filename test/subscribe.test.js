@@ -85,7 +85,30 @@ describe("POST /subscribe", () => {
       body: JSON.stringify({ email: "resend-fora@example.com" }),
     });
     expect(res.status).toBe(503);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("https://kapota.com.br");
     const body = await res.json();
     expect(typeof body.error).toBe("string");
+  });
+
+  it("reenvia confirmação quando email já está pending, sem gerar novo token", async () => {
+    const confirmToken = "existing-confirm-token";
+    const unsubscribeToken = "existing-unsub-token";
+    await insertPendingSubscriber(env.DB, "pending@example.com", confirmToken, unsubscribeToken, "2026-09-09T00:00:00.000Z");
+    const beforeRow = await getSubscriberByEmail(env.DB, "pending@example.com");
+    expect(beforeRow.status).toBe("pending");
+    expect(beforeRow.confirm_token).toBe(confirmToken);
+
+    const res = await SELF.fetch("https://worker.example/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "pending@example.com" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe("pending");
+
+    const afterRow = await getSubscriberByEmail(env.DB, "pending@example.com");
+    expect(afterRow.status).toBe("pending");
+    expect(afterRow.confirm_token).toBe(confirmToken);
   });
 });
