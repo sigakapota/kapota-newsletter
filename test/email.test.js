@@ -42,4 +42,22 @@ describe("email", () => {
       sendConfirmationEmail(env, "a@example.com", "https://worker.example/confirm?token=xyz")
     ).rejects.toThrow(/Resend falhou/);
   });
+
+  it("escapa caracteres HTML especiais em título, resumo e categoria", async () => {
+    await sendPostNotification(env, "c@example.com", "https://worker.example/unsubscribe?token=u1", {
+      title: "<script>alert(1)</script>",
+      url: "https://kapota.com.br/blog/test/",
+      excerpt: "Resumo com <tags> & \"aspas\"",
+      category: "<b>Categoria</b>",
+    });
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body.html).not.toContain("<script>alert(1)</script>");
+    expect(body.html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(body.html).toContain("&lt;tags&gt;");
+    expect(body.html).toContain("&amp;");
+    expect(body.html).toContain("&quot;");
+    expect(body.html).toContain("&lt;b&gt;");
+    // URLs should NOT be escaped
+    expect(body.html).toContain("https://kapota.com.br/blog/test/");
+  });
 });

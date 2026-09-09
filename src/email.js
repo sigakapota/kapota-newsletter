@@ -1,5 +1,15 @@
 const FROM = "Klysman Kley <novidades@kapota.com.br>";
 
+function escapeHtml(str) {
+  if (!str) return str;
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 async function sendEmail(env, { to, subject, html }) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -29,16 +39,20 @@ export async function sendConfirmationEmail(env, email, confirmUrl) {
 }
 
 export async function sendPostNotification(env, email, unsubscribeUrl, post) {
+  const escapedTitle = escapeHtml(post.title);
+  const escapedExcerpt = escapeHtml(post.excerpt ?? "");
+  const escapedCategory = escapeHtml(post.category ?? "Novo post");
+
   const html = `
     <div style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
       <p style="font-weight:700;font-size:18px;margin:0 0 24px;">kapota</p>
-      <p style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#b3711f;font-weight:700;margin:0 0 8px;">${post.category ?? "Novo post"}</p>
-      <h1 style="font-size:22px;margin:0 0 12px;">${post.title}</h1>
-      <p style="font-size:15px;line-height:1.6;color:#333;">${post.excerpt ?? ""}</p>
+      <p style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#b3711f;font-weight:700;margin:0 0 8px;">${escapedCategory}</p>
+      <h1 style="font-size:22px;margin:0 0 12px;">${escapedTitle}</h1>
+      <p style="font-size:15px;line-height:1.6;color:#333;">${escapedExcerpt}</p>
       <a href="${post.url}" style="display:inline-block;margin-top:16px;background:#0a0a0a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:999px;font-weight:700;">Ler artigo</a>
       <p style="font-size:12px;color:#888;margin-top:32px;border-top:1px solid #eee;padding-top:16px;">
         Não quer mais receber esses avisos? <a href="${unsubscribeUrl}" style="color:#888;">Descadastrar</a>
       </p>
     </div>`;
-  return sendEmail(env, { to: email, subject: `Novo no blog: ${post.title}`, html });
+  return sendEmail(env, { to: email, subject: `Novo no blog: ${escapedTitle}`, html });
 }
