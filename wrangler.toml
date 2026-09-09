@@ -1,0 +1,8 @@
+name = "kapota-newsletter"
+main = "src/index.js"
+compatibility_date = "2026-09-09"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kapota_newsletter"
+database_id = "b5401e79-80a9-426c-ba27-38ca84fe2d49"
