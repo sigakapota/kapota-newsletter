@@ -15,4 +15,5 @@ INSERT INTO sent_campaigns (slug, sent_at, recipient_count) VALUES
   ('tres-as-da-vida', '2026-09-09T00:00:00.000Z', 0),
   ('viral-nao-e-o-mesmo-que-ser-pago', '2026-09-09T00:00:00.000Z', 0),
   ('voce-nao-precisa-ver-o-topo', '2026-09-09T00:00:00.000Z', 0),
+  ('youtube-quase-foi-site-de-paquera', '2026-09-09T00:00:00.000Z', 0),
   ('youtube-visualizacao-engajada', '2026-09-09T00:00:00.000Z', 0);
