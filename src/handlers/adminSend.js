@@ -1,4 +1,4 @@
-import { getConfirmedSubscribers, hasSentCampaign, recordSentCampaign } from "../db.js";
+import { getConfirmedSubscribers, reserveCampaign, updateCampaignRecipientCount } from "../db.js";
 import { sendPostNotification } from "../email.js";
 
 function json(body, status = 200) {
@@ -6,6 +6,10 @@ function json(body, status = 200) {
 }
 
 export async function handleAdminSend(request, env) {
+  if (!env.ADMIN_SECRET) {
+    return json({ error: "ADMIN_SECRET não configurado" }, 500);
+  }
+
   const auth = request.headers.get("Authorization") ?? "";
   if (auth !== `Bearer ${env.ADMIN_SECRET}`) {
     return json({ error: "Unauthorized" }, 401);
@@ -16,7 +20,8 @@ export async function handleAdminSend(request, env) {
     return json({ error: "Payload inválido" }, 400);
   }
 
-  if (await hasSentCampaign(env.DB, post.slug)) {
+  const reserved = await reserveCampaign(env.DB, post.slug, new Date().toISOString());
+  if (!reserved) {
     return json({ status: "already-sent" });
   }
 
@@ -33,6 +38,11 @@ export async function handleAdminSend(request, env) {
     }
   }
 
-  await recordSentCampaign(env.DB, post.slug, new Date().toISOString(), sent);
+  await updateCampaignRecipientCount(env.DB, post.slug, sent);
+
+  if (sent === 0 && subscribers.length > 0) {
+    return json({ status: "send-failed", recipients: 0 }, 502);
+  }
+
   return json({ status: "sent", recipients: sent });
 }

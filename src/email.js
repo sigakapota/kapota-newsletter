@@ -42,6 +42,7 @@ export async function sendPostNotification(env, email, unsubscribeUrl, post) {
   const escapedTitle = escapeHtml(post.title);
   const escapedExcerpt = escapeHtml(post.excerpt ?? "");
   const escapedCategory = escapeHtml(post.category ?? "Novo post");
+  const escapedUrl = escapeHtml(post.url);
 
   const html = `
     <div style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
@@ -49,7 +50,7 @@ export async function sendPostNotification(env, email, unsubscribeUrl, post) {
       <p style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#b3711f;font-weight:700;margin:0 0 8px;">${escapedCategory}</p>
       <h1 style="font-size:22px;margin:0 0 12px;">${escapedTitle}</h1>
       <p style="font-size:15px;line-height:1.6;color:#333;">${escapedExcerpt}</p>
-      <a href="${post.url}" style="display:inline-block;margin-top:16px;background:#0a0a0a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:999px;font-weight:700;">Ler artigo</a>
+      <a href="${escapedUrl}" style="display:inline-block;margin-top:16px;background:#0a0a0a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:999px;font-weight:700;">Ler artigo</a>
       <p style="font-size:12px;color:#888;margin-top:32px;border-top:1px solid #eee;padding-top:16px;">
         Não quer mais receber esses avisos? <a href="${unsubscribeUrl}" style="color:#888;">Descadastrar</a>
       </p>

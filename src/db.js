@@ -32,7 +32,7 @@ export async function confirmByToken(db, token, now) {
     )
     .bind(now, token)
     .run();
-  return result.meta.rows_written > 0;
+  return result.meta.changes > 0;
 }
 
 export async function unsubscribeByToken(db, token) {
@@ -40,7 +40,7 @@ export async function unsubscribeByToken(db, token) {
     .prepare("UPDATE subscribers SET status = 'unsubscribed' WHERE unsubscribe_token = ?")
     .bind(token)
     .run();
-  return result.meta.rows_written > 0;
+  return result.meta.changes > 0;
 }
 
 export async function getConfirmedSubscribers(db) {
@@ -59,5 +59,24 @@ export async function recordSentCampaign(db, slug, now, recipientCount) {
   await db
     .prepare("INSERT INTO sent_campaigns (slug, sent_at, recipient_count) VALUES (?, ?, ?)")
     .bind(slug, now, recipientCount)
+    .run();
+}
+
+// Atomically reserves a slug for sending before any emails go out, so two
+// overlapping /admin/send calls for the same slug can't both send. Returns
+// true if this call won the reservation (i.e. should proceed to send),
+// false if the slug was already reserved/sent by a previous call.
+export async function reserveCampaign(db, slug, now) {
+  const result = await db
+    .prepare("INSERT OR IGNORE INTO sent_campaigns (slug, sent_at, recipient_count) VALUES (?, ?, 0)")
+    .bind(slug, now)
+    .run();
+  return result.meta.changes > 0;
+}
+
+export async function updateCampaignRecipientCount(db, slug, recipientCount) {
+  await db
+    .prepare("UPDATE sent_campaigns SET recipient_count = ? WHERE slug = ?")
+    .bind(recipientCount, slug)
     .run();
 }

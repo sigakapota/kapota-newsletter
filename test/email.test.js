@@ -60,4 +60,16 @@ describe("email", () => {
     // URLs should NOT be escaped
     expect(body.html).toContain("https://kapota.com.br/blog/test/");
   });
+
+  it("escapa aspas em post.url pra não quebrar o atributo href", async () => {
+    await sendPostNotification(env, "d@example.com", "https://worker.example/unsubscribe?token=u1", {
+      title: "Post com URL maliciosa",
+      url: 'https://kapota.com.br/blog/x" onmouseover="alert(1)',
+      excerpt: "Resumo normal.",
+      category: "Categoria",
+    });
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body.html).not.toContain('x" onmouseover="alert(1)');
+    expect(body.html).toContain("x&quot; onmouseover=&quot;alert(1)");
+  });
 });
