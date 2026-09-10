@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { sendConfirmationEmail, sendPostNotification } from "../src/email.js";
+import { sendConfirmationEmail, sendWeeklyDigest } from "../src/email.js";
 
 const env = { RESEND_API_KEY: "re_test_key" };
+
+const POST_A = {
+  title: "Post de teste",
+  url: "https://kapota.com.br/blog/post-de-teste/",
+  excerpt: "Um resumo.",
+  category: "Frase Comentada",
+};
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: "abc" }), { status: 200 })));
@@ -23,17 +30,23 @@ describe("email", () => {
     expect(body.html).toContain("https://worker.example/confirm?token=xyz");
   });
 
-  it("sendPostNotification inclui título, link do post e link de descadastro", async () => {
-    await sendPostNotification(env, "b@example.com", "https://worker.example/unsubscribe?token=u1", {
-      title: "Post de teste",
-      url: "https://kapota.com.br/blog/post-de-teste/",
-      excerpt: "Um resumo.",
-      category: "Frase Comentada",
-    });
+  it("sendWeeklyDigest inclui um card por post, com link e descadastro", async () => {
+    await sendWeeklyDigest(env, "b@example.com", "https://worker.example/unsubscribe?token=u1", [POST_A], "08 a 14 de setembro");
     const body = JSON.parse(fetch.mock.calls[0][1].body);
-    expect(body.subject).toContain("Post de teste");
+    expect(body.subject).toContain("1 post novo");
+    expect(body.html).toContain("Post de teste");
     expect(body.html).toContain("https://kapota.com.br/blog/post-de-teste/");
     expect(body.html).toContain("https://worker.example/unsubscribe?token=u1");
+    expect(body.html).toContain("08 a 14 de setembro");
+  });
+
+  it("sendWeeklyDigest lista múltiplos posts e usa plural no assunto", async () => {
+    const postB = { ...POST_A, title: "Segundo post", url: "https://kapota.com.br/blog/segundo/" };
+    await sendWeeklyDigest(env, "b@example.com", "https://worker.example/unsubscribe?token=u1", [POST_A, postB], "08 a 14 de setembro");
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body.subject).toContain("2 posts novos");
+    expect(body.html).toContain("Post de teste");
+    expect(body.html).toContain("Segundo post");
   });
 
   it("lança erro se o Resend responder com falha", async () => {
@@ -44,12 +57,14 @@ describe("email", () => {
   });
 
   it("escapa caracteres HTML especiais em título, resumo e categoria", async () => {
-    await sendPostNotification(env, "c@example.com", "https://worker.example/unsubscribe?token=u1", {
-      title: "<script>alert(1)</script>",
-      url: "https://kapota.com.br/blog/test/",
-      excerpt: "Resumo com <tags> & \"aspas\"",
-      category: "<b>Categoria</b>",
-    });
+    await sendWeeklyDigest(env, "c@example.com", "https://worker.example/unsubscribe?token=u1", [
+      {
+        title: "<script>alert(1)</script>",
+        url: "https://kapota.com.br/blog/test/",
+        excerpt: "Resumo com <tags> & \"aspas\"",
+        category: "<b>Categoria</b>",
+      },
+    ], "08 a 14 de setembro");
     const body = JSON.parse(fetch.mock.calls[0][1].body);
     expect(body.html).not.toContain("<script>alert(1)</script>");
     expect(body.html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
@@ -57,17 +72,19 @@ describe("email", () => {
     expect(body.html).toContain("&amp;");
     expect(body.html).toContain("&quot;");
     expect(body.html).toContain("&lt;b&gt;");
-    // URLs should NOT be escaped
+    // URLs should not contain the raw unescaped attribute-breaking sequence
     expect(body.html).toContain("https://kapota.com.br/blog/test/");
   });
 
   it("escapa aspas em post.url pra não quebrar o atributo href", async () => {
-    await sendPostNotification(env, "d@example.com", "https://worker.example/unsubscribe?token=u1", {
-      title: "Post com URL maliciosa",
-      url: 'https://kapota.com.br/blog/x" onmouseover="alert(1)',
-      excerpt: "Resumo normal.",
-      category: "Categoria",
-    });
+    await sendWeeklyDigest(env, "d@example.com", "https://worker.example/unsubscribe?token=u1", [
+      {
+        title: "Post com URL maliciosa",
+        url: 'https://kapota.com.br/blog/x" onmouseover="alert(1)',
+        excerpt: "Resumo normal.",
+        category: "Categoria",
+      },
+    ], "08 a 14 de setembro");
     const body = JSON.parse(fetch.mock.calls[0][1].body);
     expect(body.html).not.toContain('x" onmouseover="alert(1)');
     expect(body.html).toContain("x&quot; onmouseover=&quot;alert(1)");

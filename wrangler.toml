@@ -2,6 +2,12 @@ name = "kapota-newsletter"
 main = "src/index.js"
 compatibility_date = "2026-09-09"
 
+[triggers]
+crons = ["0 11 * * 1"]
+
+[vars]
+WORKER_URL = "https://kapota-newsletter.sigakapota.workers.dev"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "kapota_newsletter"

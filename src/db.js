@@ -50,34 +50,49 @@ export async function getConfirmedSubscribers(db) {
   return results;
 }
 
-export async function hasSentCampaign(db, slug) {
-  const row = await db.prepare("SELECT slug FROM sent_campaigns WHERE slug = ?").bind(slug).first();
-  return row != null;
-}
-
-export async function recordSentCampaign(db, slug, now, recipientCount) {
+export async function upsertPost(db, post, now) {
   await db
-    .prepare("INSERT INTO sent_campaigns (slug, sent_at, recipient_count) VALUES (?, ?, ?)")
-    .bind(slug, now, recipientCount)
+    .prepare(
+      `INSERT INTO posts (slug, title, excerpt, url, category, date_iso, registered_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(slug) DO UPDATE SET
+         title = excluded.title,
+         excerpt = excluded.excerpt,
+         url = excluded.url,
+         category = excluded.category,
+         date_iso = excluded.date_iso,
+         registered_at = excluded.registered_at`
+    )
+    .bind(post.slug, post.title, post.excerpt, post.url, post.category, post.dateISO, now)
     .run();
 }
 
-// Atomically reserves a slug for sending before any emails go out, so two
-// overlapping /admin/send calls for the same slug can't both send. Returns
-// true if this call won the reservation (i.e. should proceed to send),
-// false if the slug was already reserved/sent by a previous call.
-export async function reserveCampaign(db, slug, now) {
+export async function getPostsInRange(db, sinceIso, untilIso) {
+  const { results } = await db
+    .prepare(
+      `SELECT slug, title, excerpt, url, category, date_iso
+       FROM posts WHERE date_iso >= ? AND date_iso < ? ORDER BY date_iso ASC`
+    )
+    .bind(sinceIso, untilIso)
+    .all();
+  return results;
+}
+
+// Atomically reserves a week for the digest before any emails go out, so an
+// overlapping/re-triggered cron run for the same week can't send twice.
+// Returns true if this call won the reservation, false if already sent.
+export async function reserveDigestWeek(db, weekStart, now) {
   const result = await db
-    .prepare("INSERT OR IGNORE INTO sent_campaigns (slug, sent_at, recipient_count) VALUES (?, ?, 0)")
-    .bind(slug, now)
+    .prepare("INSERT OR IGNORE INTO digest_log (week_start, sent_at, recipient_count, post_count) VALUES (?, ?, 0, 0)")
+    .bind(weekStart, now)
     .run();
   return result.meta.changes > 0;
 }
 
-export async function updateCampaignRecipientCount(db, slug, recipientCount) {
+export async function updateDigestStats(db, weekStart, recipientCount, postCount) {
   await db
-    .prepare("UPDATE sent_campaigns SET recipient_count = ? WHERE slug = ?")
-    .bind(recipientCount, slug)
+    .prepare("UPDATE digest_log SET recipient_count = ?, post_count = ? WHERE week_start = ?")
+    .bind(recipientCount, postCount, weekStart)
     .run();
 }
 
