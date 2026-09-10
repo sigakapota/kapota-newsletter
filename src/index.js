@@ -17,5 +17,8 @@ export default {
   async scheduled(event, env) {
     const result = await sendPendingDigest(env, new Date(event.scheduledTime));
     console.log(`Resumo semanal: ${JSON.stringify(result)}`);
+    if (result.status === "send-failed") {
+      throw new Error(`Resumo da semana ${result.weekStart} falhou pra todos os destinatários (${result.posts} posts)`);
+    }
   },
 };

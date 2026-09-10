@@ -6,6 +6,16 @@ const MONTHS_PT = [
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
 
+// `date_iso` in the `posts` table is a plain YYYY-MM-DD calendar date (no
+// timezone), extracted from the blog's own published-date markup — not a
+// UTC instant. Range bounds must be reduced to the same YYYY-MM-DD shape
+// before comparing, or the comparison silently shifts by a day (a full
+// ISO datetime is lexicographically greater than the date-only rows it's
+// meant to bound).
+function dateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
 // Rolls `now` back to the most recent Monday 00:00 UTC, then returns the
 // 7-day window ending there — i.e. the previous Monday-to-Sunday week.
 export function getPreviousWeekRange(now) {
@@ -36,14 +46,18 @@ export function formatWeekLabel(since) {
 }
 
 export async function sendPendingDigest(env, now = new Date()) {
-  const { since, until } = getPreviousWeekRange(now);
-  const sinceIso = since.toISOString();
-  const untilIso = until.toISOString();
-  const weekStart = sinceIso.slice(0, 10);
+  if (!env.WORKER_URL) {
+    throw new Error("WORKER_URL não configurado — resumo não enviado");
+  }
 
-  const posts = await getPostsInRange(env.DB, sinceIso, untilIso);
+  const { since, until } = getPreviousWeekRange(now);
+  const sinceKey = dateKey(since);
+  const untilKey = dateKey(until);
+  const weekStart = sinceKey;
+
+  const posts = await getPostsInRange(env.DB, sinceKey, untilKey);
   if (posts.length === 0) {
-    console.log(`Nenhum post entre ${sinceIso} e ${untilIso} — resumo não enviado.`);
+    console.log(`Nenhum post entre ${sinceKey} e ${untilKey} — resumo não enviado.`);
     return { status: "no-posts", weekStart };
   }
 

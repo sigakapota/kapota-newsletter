@@ -8,6 +8,9 @@ CREATE TABLE subscribers (
   confirmed_at TEXT
 );
 
+-- Retirada de uso em favor do resumo semanal (ver migrations/0003 e
+-- src/digest.js) — mantida sem DROP só pelo histórico de quais posts já
+-- tinham sido avisados no formato antigo (um email por post).
 CREATE TABLE sent_campaigns (
   slug TEXT PRIMARY KEY,
   sent_at TEXT NOT NULL,

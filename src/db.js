@@ -63,17 +63,22 @@ export async function upsertPost(db, post, now) {
          date_iso = excluded.date_iso,
          registered_at = excluded.registered_at`
     )
-    .bind(post.slug, post.title, post.excerpt, post.url, post.category, post.dateISO, now)
+    .bind(post.slug, post.title, post.excerpt, post.url, post.category, post.dateISO.slice(0, 10), now)
     .run();
 }
 
-export async function getPostsInRange(db, sinceIso, untilIso) {
+// `sinceKey`/`untilKey` must be plain YYYY-MM-DD strings — see the
+// `dateKey()` comment in digest.js for why this can't be a full ISO
+// datetime (date_iso is stored as a date-only string, and a longer ISO
+// bound would sort as greater than every row, shifting the window by a
+// day).
+export async function getPostsInRange(db, sinceKey, untilKey) {
   const { results } = await db
     .prepare(
       `SELECT slug, title, excerpt, url, category, date_iso
        FROM posts WHERE date_iso >= ? AND date_iso < ? ORDER BY date_iso ASC`
     )
-    .bind(sinceIso, untilIso)
+    .bind(sinceKey, untilKey)
     .all();
   return results;
 }

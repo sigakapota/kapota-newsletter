@@ -65,7 +65,7 @@ describe("sendPendingDigest", () => {
         excerpt: "Resumo",
         url: "https://kapota.com.br/blog/post-da-semana/",
         category: "Categoria",
-        dateISO: "2026-02-03T00:00:00.000Z",
+        dateISO: "2026-02-02", // segunda-feira, primeiro dia da janela — cobre o limite inferior
       },
       "2026-02-03T00:00:00.000Z"
     );
@@ -90,7 +90,7 @@ describe("sendPendingDigest", () => {
         excerpt: "Resumo",
         url: "https://kapota.com.br/blog/post-repetido-semana/",
         category: "Categoria",
-        dateISO: "2026-03-03T00:00:00.000Z",
+        dateISO: "2026-03-03",
       },
       "2026-03-03T00:00:00.000Z"
     );
@@ -102,5 +102,39 @@ describe("sendPendingDigest", () => {
     expect(first.status).toBe("sent");
     expect(second.status).toBe("already-sent");
     expect(fetch).toHaveBeenCalledTimes(callsAfterFirst);
+  });
+
+  it("duas chamadas concorrentes pra mesma semana não mandam duplicado", async () => {
+    await env.DB.prepare(
+      `INSERT INTO subscribers (email, status, confirm_token, unsubscribe_token, created_at, confirmed_at)
+       VALUES ('concorrente@example.com', 'confirmed', 'tok-conc', 'unsub-conc', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
+    ).run();
+    await upsertPost(
+      env.DB,
+      {
+        slug: "post-semana-concorrente",
+        title: "Post concorrente",
+        excerpt: "Resumo",
+        url: "https://kapota.com.br/blog/post-semana-concorrente/",
+        category: "Categoria",
+        dateISO: "2026-04-06",
+      },
+      "2026-04-06T00:00:00.000Z"
+    );
+
+    const [a, b] = await Promise.all([
+      sendPendingDigest(env, new Date("2026-04-13T11:00:00.000Z")),
+      sendPendingDigest(env, new Date("2026-04-13T11:00:00.000Z")),
+    ]);
+
+    const statuses = [a.status, b.status].sort();
+    expect(statuses).toEqual(["already-sent", "sent"]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("lança erro se WORKER_URL não estiver configurado", async () => {
+    await expect(sendPendingDigest({ ...env, WORKER_URL: undefined }, new Date("2026-05-04T11:00:00.000Z"))).rejects.toThrow(
+      /WORKER_URL/
+    );
   });
 });

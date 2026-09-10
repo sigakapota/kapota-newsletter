@@ -94,10 +94,19 @@ describe("db", () => {
   it("getPostsInRange só traz posts dentro do intervalo", async () => {
     await upsertPost(env.DB, { slug: "post-dentro", title: "t", excerpt: "e", url: "u", category: "c", dateISO: "2026-09-10" }, NOW);
     await upsertPost(env.DB, { slug: "post-fora", title: "t", excerpt: "e", url: "u", category: "c", dateISO: "2026-09-20" }, NOW);
-    const posts = await getPostsInRange(env.DB, "2026-09-08T00:00:00.000Z", "2026-09-15T00:00:00.000Z");
+    const posts = await getPostsInRange(env.DB, "2026-09-08", "2026-09-15");
     const slugs = posts.map((p) => p.slug);
     expect(slugs).toContain("post-dentro");
     expect(slugs).not.toContain("post-fora");
+  });
+
+  it("getPostsInRange inclui o primeiro dia (since) e exclui o último (until)", async () => {
+    await upsertPost(env.DB, { slug: "post-primeiro-dia", title: "t", excerpt: "e", url: "u", category: "c", dateISO: "2026-10-05" }, NOW);
+    await upsertPost(env.DB, { slug: "post-ultimo-dia-excluido", title: "t", excerpt: "e", url: "u", category: "c", dateISO: "2026-10-12" }, NOW);
+    const posts = await getPostsInRange(env.DB, "2026-10-05", "2026-10-12");
+    const slugs = posts.map((p) => p.slug);
+    expect(slugs).toContain("post-primeiro-dia");
+    expect(slugs).not.toContain("post-ultimo-dia-excluido");
   });
 
   it("reserveDigestWeek reserva uma vez só", async () => {

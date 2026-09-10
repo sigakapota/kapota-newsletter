@@ -1,5 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
+import { handleRegisterPost } from "../src/handlers/registerPost.js";
 import { applyMigrations } from "./helpers/migrate.js";
 
 env.ADMIN_SECRET = "segredo-de-teste";
@@ -57,12 +58,33 @@ describe("POST /admin/register-post", () => {
     expect(results[0].title).toBe("Título 2");
   });
 
-  it("rejeita payload sem dateISO", async () => {
+  it("rejeita payload sem excerpt/category", async () => {
     const res = await SELF.fetch("https://worker.example/admin/register-post", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: "Bearer segredo-de-teste" },
       body: JSON.stringify({ slug: "x", title: "x", url: "x" }),
     });
     expect(res.status).toBe(400);
+  });
+
+  it("rejeita dateISO num formato que não é YYYY-MM-DD", async () => {
+    const res = await SELF.fetch("https://worker.example/admin/register-post", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer segredo-de-teste" },
+      body: JSON.stringify({ ...POST, slug: "post-data-invalida", dateISO: "08/09/2026" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("recusa com 500 se ADMIN_SECRET não estiver configurado, mesmo com 'Bearer undefined'", async () => {
+    const res = await handleRegisterPost(
+      new Request("https://worker.example/admin/register-post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer undefined" },
+        body: JSON.stringify(POST),
+      }),
+      { ...env, ADMIN_SECRET: undefined }
+    );
+    expect(res.status).toBe(500);
   });
 });
