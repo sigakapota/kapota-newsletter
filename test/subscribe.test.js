@@ -111,4 +111,32 @@ describe("POST /subscribe", () => {
     expect(afterRow.status).toBe("pending");
     expect(afterRow.confirm_token).toBe(confirmToken);
   });
+
+  it("limita a 5 tentativas por IP na mesma janela, e libera pra outro IP", async () => {
+    const ip = "1.2.3.4";
+    for (let i = 0; i < 5; i++) {
+      const res = await SELF.fetch("https://worker.example/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "CF-Connecting-IP": ip },
+        body: JSON.stringify({ email: `rate-limit-${i}@example.com` }),
+      });
+      expect(res.status).toBe(200);
+    }
+
+    const sixthRes = await SELF.fetch("https://worker.example/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "CF-Connecting-IP": ip },
+      body: JSON.stringify({ email: "rate-limit-6@example.com" }),
+    });
+    expect(sixthRes.status).toBe(429);
+    const sixthBody = await sixthRes.json();
+    expect(typeof sixthBody.error).toBe("string");
+
+    const otherIpRes = await SELF.fetch("https://worker.example/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "CF-Connecting-IP": "5.6.7.8" },
+      body: JSON.stringify({ email: "rate-limit-other-ip@example.com" }),
+    });
+    expect(otherIpRes.status).toBe(200);
+  });
 });

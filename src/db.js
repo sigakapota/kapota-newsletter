@@ -80,3 +80,18 @@ export async function updateCampaignRecipientCount(db, slug, recipientCount) {
     .bind(recipientCount, slug)
     .run();
 }
+
+export async function countRecentAttempts(db, ip, sinceIso) {
+  const row = await db
+    .prepare("SELECT COUNT(*) as count FROM subscribe_attempts WHERE ip = ? AND created_at >= ?")
+    .bind(ip, sinceIso)
+    .first();
+  return row.count;
+}
+
+export async function recordAttempt(db, ip, now) {
+  await db
+    .prepare("INSERT INTO subscribe_attempts (ip, created_at) VALUES (?, ?)")
+    .bind(ip, now)
+    .run();
+}
